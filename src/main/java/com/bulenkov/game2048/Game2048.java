@@ -16,6 +16,9 @@
 
 package com.bulenkov.game2048;
 
+import ar.com.emmanuelmessulam.GameEnvironment;
+import ar.com.emmanuelmessulam.SimpleAgent;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -23,6 +26,7 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Konstantin Bulenkov
@@ -37,45 +41,56 @@ public class Game2048 extends JPanel {
     boolean myWin = false;
     boolean myLose = false;
     int myScore = 0;
+    SimpleAgent agent;
 
     public Game2048() {
         setPreferredSize(new Dimension(340, 400));
         setFocusable(true);
-        addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                    resetGame();
-                }
-                if (!canMove()) {
-                    myLose = true;
-                }
+    }
 
-                if (!myWin && !myLose) {
-                    switch (e.getKeyCode()) {
-                        case KeyEvent.VK_LEFT:
-                            left();
-                            break;
-                        case KeyEvent.VK_RIGHT:
-                            right();
-                            break;
-                        case KeyEvent.VK_DOWN:
-                            down();
-                            break;
-                        case KeyEvent.VK_UP:
-                            up();
-                            break;
-                    }
-                }
-
-                if (!myWin && !canMove()) {
-                    myLose = true;
-                }
-
-                repaint();
-            }
-        });
+    public void startGame() {
         resetGame();
+
+        while(!myWin && canMove()) {
+            if (!canMove()) {
+                myLose = true;
+            }
+
+            agent.setEnvironment(new GameEnvironment(
+                    myScore,
+                    myWin,
+                    List.of(myTiles).stream().mapToInt(tile -> tile.value).toArray()
+            ));
+
+            if (!myWin && !myLose) {
+                switch (agent.act()) {
+                    case LEFT:
+                        left();
+                        break;
+                    case RIGHT:
+                        right();
+                        break;
+                    case DOWN:
+                        down();
+                        break;
+                    case UP:
+                        up();
+                        break;
+                }
+            }
+
+            if (!myWin && !canMove()) {
+                myLose = true;
+            }
+
+            repaint();
+
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void resetGame() {
@@ -83,6 +98,7 @@ public class Game2048 extends JPanel {
         myWin = false;
         myLose = false;
         myTiles = new Tile[4 * 4];
+        agent = new SimpleAgent();
         for (int i = 0; i < myTiles.length; i++) {
             myTiles[i] = new Tile();
         }
@@ -363,15 +379,21 @@ public class Game2048 extends JPanel {
     }
 
     public static void main(String[] args) {
-        JFrame game = new JFrame();
-        game.setTitle("2048 Game");
-        game.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        game.setSize(340, 400);
-        game.setResizable(false);
+        Game2048 game = new Game2048();
 
-        game.add(new Game2048());
+        JFrame frame = new JFrame();
+        frame.setTitle("2048 Game");
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setSize(340, 400);
+        frame.setResizable(false);
 
-        game.setLocationRelativeTo(null);
-        game.setVisible(true);
+        frame.add(game);
+
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+
+        while (true) {
+            game.startGame();
+        }
     }
 }
