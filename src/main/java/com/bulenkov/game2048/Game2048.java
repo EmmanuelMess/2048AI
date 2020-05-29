@@ -21,8 +21,6 @@ import ar.com.emmanuelmessulam.SimpleAgent;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,6 +42,8 @@ public class Game2048 extends JPanel {
     SimpleAgent agent;
 
     public Game2048() {
+        agent = new SimpleAgent();
+
         setPreferredSize(new Dimension(340, 400));
         setFocusable(true);
     }
@@ -56,9 +56,9 @@ public class Game2048 extends JPanel {
                 myLose = true;
             }
 
-            agent.setEnvironment(new GameEnvironment(
+            agent.setCurrentState(new GameEnvironment(
                     myScore,
-                    myWin,
+                    myLose,
                     List.of(myTiles).stream().mapToInt(tile -> tile.value).toArray()
             ));
 
@@ -86,7 +86,7 @@ public class Game2048 extends JPanel {
             repaint();
 
             try {
-                TimeUnit.SECONDS.sleep(1);
+                TimeUnit.MILLISECONDS.sleep(250);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -98,7 +98,6 @@ public class Game2048 extends JPanel {
         myWin = false;
         myLose = false;
         myTiles = new Tile[4 * 4];
-        agent = new SimpleAgent();
         for (int i = 0; i < myTiles.length; i++) {
             myTiles[i] = new Tile();
         }
@@ -281,6 +280,10 @@ public class Game2048 extends JPanel {
 
     @Override
     public void paint(Graphics g) {
+        if(myTiles == null) {
+            return;
+        }
+
         super.paint(g);
         g.setColor(BG_COLOR);
         g.fillRect(0, 0, this.getSize().width, this.getSize().height);
