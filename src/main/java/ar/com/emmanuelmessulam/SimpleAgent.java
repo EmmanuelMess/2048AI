@@ -13,7 +13,6 @@ import org.deeplearning4j.ui.stats.StatsListener;
 import org.deeplearning4j.ui.storage.InMemoryStatsStorage;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.cpu.nativecpu.NDArray;
 import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
@@ -45,8 +44,7 @@ public class SimpleAgent {
             //Output layer
             .layer(3, new OutputLayer.Builder()
                     .nIn(4).nOut(4)
-                    .activation(Activation.SOFTMAX)
-                    .lossFunction(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+                    .lossFunction(LossFunctions.LossFunction.SQUARED_LOSS)
                     .build())
             .build();
     MultiLayerNetwork Qnetwork = new MultiLayerNetwork(conf);
@@ -68,7 +66,7 @@ public class SimpleAgent {
     public GameAction act() {
         if(oldState != null) {
             int oldPoints = oldState.points;
-            double reward = lerp(currentState.points - oldPoints, 2048);
+            double reward = (currentState.points - oldPoints) * 0.01;
 
             if(currentState.lost) {
                 reward = 0;

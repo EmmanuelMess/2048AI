@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class Game2048 extends JPanel {
     public static final int SEED = 123;
+    public static final boolean SHOW = true;
 
     private static final Color BG_COLOR = new Color(0xbbada0);
     private static final String FONT_NAME = "Arial";
@@ -89,8 +90,18 @@ public class Game2048 extends JPanel {
 
             repaint();
 
+            if(SHOW) {
+                try {
+                    TimeUnit.MILLISECONDS.sleep(16);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        if(myWin) {
             try {
-                TimeUnit.MILLISECONDS.sleep(250);
+                TimeUnit.DAYS.sleep(1);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -397,7 +408,7 @@ public class Game2048 extends JPanel {
         frame.add(game);
 
         frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
+        frame.setVisible(SHOW);
 
         while (true) {
             game.startGame();
