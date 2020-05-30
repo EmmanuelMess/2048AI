@@ -24,17 +24,21 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author Konstantin Bulenkov
  */
 public class Game2048 extends JPanel {
+    public static final int SEED = 123;
+
     private static final Color BG_COLOR = new Color(0xbbada0);
     private static final String FONT_NAME = "Arial";
     private static final int TILE_SIZE = 64;
     private static final int TILES_MARGIN = 16;
 
+    private final Random random = new Random(SEED);
     private Tile[] myTiles;
     boolean myWin = false;
     boolean myLose = false;
@@ -146,9 +150,9 @@ public class Game2048 extends JPanel {
     private void addTile() {
         List<Tile> list = availableSpace();
         if (!availableSpace().isEmpty()) {
-            int index = (int) (Math.random() * list.size()) % list.size();
+            int index = (int) (random.nextDouble() * list.size()) % list.size();
             Tile emptyTime = list.get(index);
-            emptyTime.value = Math.random() < 0.9 ? 2 : 4;
+            emptyTime.value = random.nextDouble() < 0.9 ? 2 : 4;
         }
     }
 

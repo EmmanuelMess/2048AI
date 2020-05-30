@@ -19,9 +19,13 @@ import org.nd4j.linalg.lossfunctions.LossFunctions;
 
 import java.util.Random;
 
+import static com.bulenkov.game2048.Game2048.SEED;
+
 public class SimpleAgent {
+    private static final Random random = new Random(SEED);
+
     private static final MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
-            .seed(12345)
+            .seed(SEED)
             .weightInit(WeightInit.XAVIER)
             .updater(new AdaGrad(0.5))
             .activation(Activation.RELU)
@@ -31,19 +35,16 @@ public class SimpleAgent {
             //First hidden layer
             .layer(0, new DenseLayer.Builder()
                     .nIn(16).nOut(12)
-                    .weightInit(WeightInit.XAVIER)
-                    .activation(Activation.RELU)
                     .build())
-            //Second hidden layer
             .layer(1, new DenseLayer.Builder()
                     .nIn(12).nOut(6)
-                    .weightInit(WeightInit.XAVIER)
-                    .activation(Activation.RELU)
+                    .build())
+            .layer(2, new DenseLayer.Builder()
+                    .nIn(6).nOut(4)
                     .build())
             //Output layer
-            .layer(2, new OutputLayer.Builder()
-                    .nIn(6).nOut(4)
-                    .weightInit(WeightInit.XAVIER)
+            .layer(3, new OutputLayer.Builder()
+                    .nIn(4).nOut(4)
                     .activation(Activation.SOFTMAX)
                     .lossFunction(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
                     .build())
@@ -78,7 +79,7 @@ public class SimpleAgent {
             INDArray oldQuality = Qnetwork.output(oldState.boardState);
             INDArray realQuality = oldQuality.add(0).putScalar(lastAction.ordinal(), reward);
 
-            Qnetwork.fit(oldState.boardState, realQuality);
+            Qnetwork.fit(oldState.boardState, realQuality);//TODO actually use minibatching
         }
 
         oldState = currentState;
