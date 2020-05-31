@@ -13,9 +13,12 @@ import org.deeplearning4j.ui.stats.StatsListener;
 import org.deeplearning4j.ui.storage.InMemoryStatsStorage;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.dataset.MultiDataSet;
 import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Random;
 
 import static com.bulenkov.game2048.Game2048.SEED;
@@ -51,6 +54,7 @@ public class SimpleAgent {
 
     private GameEnvironment oldState;
     private GameEnvironment currentState;
+    private INDArray oldQuality;
 
     private GameAction lastAction;
 
@@ -63,27 +67,44 @@ public class SimpleAgent {
         this.currentState = currentState;
     }
 
+    private ArrayList<INDArray> input = new ArrayList<>();
+    private ArrayList<INDArray> output = new ArrayList<>();
+
+    private int epsilon = 100;
+
     public GameAction act() {
         if(oldState != null) {
             int oldPoints = oldState.points;
-            double reward = (currentState.points - oldPoints) * 0.01;
+            double reward = lerp(currentState.points - oldPoints, 1024);
 
-            if(currentState.lost) {
+            if (currentState.lost) {
                 reward = 0;
-
-                System.out.println("Lost: " + currentState.points);
             }
 
-            INDArray oldQuality = Qnetwork.output(oldState.boardState);
-            INDArray realQuality = oldQuality.add(0).putScalar(lastAction.ordinal(), reward);
+            input.add(oldState.boardState);
+            output.add(oldQuality.add(0).putScalar(lastAction.ordinal(), reward));
 
-            Qnetwork.fit(oldState.boardState, realQuality);//TODO actually use minibatching
+            if (currentState.lost || input.size() == 1) {
+                Qnetwork.fit(new MultiDataSet(input.toArray(new INDArray[0]), output.toArray(new INDArray[0])));
+
+                input.clear();
+                output.clear();
+            }
+
+            epsilon = Math.max(1, epsilon - 10);
         }
 
         oldState = currentState;
+        oldQuality = Qnetwork.output(currentState.boardState);
 
-        INDArray result = Qnetwork.output(currentState.boardState);
-        GameAction action = GameAction.values()[result.argMax(1).getInt()];
+        GameAction action;
+
+
+        if(random.nextInt(100) < 100-epsilon) {
+            action = GameAction.values()[oldQuality.argMax(1).getInt()];
+        } else {
+            action = GameAction.values()[new Random().nextInt(GameAction.values().length)];
+        }
 
         lastAction = action;
 
