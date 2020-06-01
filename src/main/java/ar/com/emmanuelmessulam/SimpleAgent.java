@@ -13,6 +13,7 @@ import org.deeplearning4j.ui.stats.StatsListener;
 import org.deeplearning4j.ui.storage.InMemoryStatsStorage;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.MultiDataSet;
 import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
@@ -36,16 +37,13 @@ public class SimpleAgent {
             .list()
             //First hidden layer
             .layer(0, new DenseLayer.Builder()
-                    .nIn(16).nOut(12)
+                    .nIn(16).nOut(8)
                     .build())
             .layer(1, new DenseLayer.Builder()
-                    .nIn(12).nOut(6)
-                    .build())
-            .layer(2, new DenseLayer.Builder()
-                    .nIn(6).nOut(4)
+                    .nIn(8).nOut(4)
                     .build())
             //Output layer
-            .layer(3, new OutputLayer.Builder()
+            .layer(2, new OutputLayer.Builder()
                     .nIn(4).nOut(4)
                     .lossFunction(LossFunctions.LossFunction.SQUARED_LOSS)
                     .build())
@@ -67,28 +65,49 @@ public class SimpleAgent {
         this.currentState = currentState;
     }
 
-    private ArrayList<INDArray> input = new ArrayList<>();
-    private ArrayList<INDArray> output = new ArrayList<>();
+    private final ArrayList<INDArray> input = new ArrayList<>();
+    private final ArrayList<INDArray> output = new ArrayList<>();
+    private final ArrayList<Double> rewards = new ArrayList<>();
 
     private int epsilon = 100;
 
     public GameAction act() {
         if(oldState != null) {
-            int oldPoints = oldState.points;
-            double reward = lerp(currentState.points - oldPoints, 1024);
+            double reward = lerp(currentState.points - oldState.points, 1024);
 
             if (currentState.lost) {
                 reward = 0;
             }
 
             input.add(oldState.boardState);
-            output.add(oldQuality.add(0).putScalar(lastAction.ordinal(), reward));
+            output.add(oldQuality);
+            rewards.add(reward);
 
-            if (currentState.lost || input.size() == 1) {
-                Qnetwork.fit(new MultiDataSet(input.toArray(new INDArray[0]), output.toArray(new INDArray[0])));
+            if (currentState.lost || input.size() == 15) {
+                for(int i = 0; i < rewards.size(); i++) {
+                    double discount = 0.6;
+                    double discountedReward = 0;
+
+                    for(int j = i; j < rewards.size(); j++) {
+                        discountedReward += rewards.get(j) * Math.pow(discount, j - i);
+                    }
+
+                    rewards.set(i, discountedReward);
+                }
+
+                ArrayList<DataSet> dataSets = new ArrayList<>();
+
+                for(int i = 0; i < input.size(); i++) {
+                    INDArray correctOut = output.get(i).putScalar(lastAction.ordinal(), rewards.get(i));
+
+                    dataSets.add(new DataSet(input.get(i), correctOut));
+                }
+
+                Qnetwork.fit(DataSet.merge(dataSets));
 
                 input.clear();
                 output.clear();
+                rewards.clear();
             }
 
             epsilon = Math.max(1, epsilon - 10);
