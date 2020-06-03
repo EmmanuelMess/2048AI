@@ -14,11 +14,9 @@ import org.deeplearning4j.ui.storage.InMemoryStatsStorage;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
-import org.nd4j.linalg.dataset.MultiDataSet;
 import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -33,18 +31,13 @@ public class SimpleAgent {
             .updater(new AdaGrad(0.5))
             .activation(Activation.RELU)
             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-            .l2(0.0001)
+            .weightDecay(0.0001)
             .list()
-            //First hidden layer
-            .layer(0, new DenseLayer.Builder()
+            .layer(new DenseLayer.Builder()
                     .nIn(16).nOut(8)
                     .build())
-            .layer(1, new DenseLayer.Builder()
+            .layer(new OutputLayer.Builder()
                     .nIn(8).nOut(4)
-                    .build())
-            //Output layer
-            .layer(2, new OutputLayer.Builder()
-                    .nIn(4).nOut(4)
                     .lossFunction(LossFunctions.LossFunction.SQUARED_LOSS)
                     .build())
             .build();
@@ -73,7 +66,7 @@ public class SimpleAgent {
 
     public GameAction act() {
         if(oldState != null) {
-            double reward = lerp(currentState.points - oldState.points, 1024);
+            double reward = currentState.points - oldState.points;
 
             if (currentState.lost) {
                 reward = 0;
@@ -83,16 +76,16 @@ public class SimpleAgent {
             output.add(oldQuality);
             rewards.add(reward);
 
-            if (currentState.lost || input.size() == 15) {
+            if (currentState.lost || input.size() == 20) {
                 for(int i = 0; i < rewards.size(); i++) {
-                    double discount = 0.6;
+                    double discount = 1.4;
                     double discountedReward = 0;
 
                     for(int j = i; j < rewards.size(); j++) {
                         discountedReward += rewards.get(j) * Math.pow(discount, j - i);
                     }
 
-                    rewards.set(i, discountedReward);
+                    rewards.set(i, lerp(discountedReward, 1024));
                 }
 
                 ArrayList<DataSet> dataSets = new ArrayList<>();
@@ -135,16 +128,9 @@ public class SimpleAgent {
     }
 
     private void ui() {
-        //Initialize the user interface backend
         UIServer uiServer = UIServer.getInstance();
-
-        //Configure where the network information (gradients, score vs. time etc) is to be stored. Here: store in memory.
-        StatsStorage statsStorage = new InMemoryStatsStorage();         //Alternative: new FileStatsStorage(File), for saving and loading later
-
-        //Attach the StatsStorage instance to the UI: this allows the contents of the StatsStorage to be visualized
+        StatsStorage statsStorage = new InMemoryStatsStorage();
         uiServer.attach(statsStorage);
-
-        //Then add the StatsListener to collect this information from the network, as it trains
         Qnetwork.setListeners(new StatsListener(statsStorage));
     }
 }
