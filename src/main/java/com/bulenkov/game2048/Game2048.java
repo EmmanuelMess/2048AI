@@ -93,7 +93,7 @@ public class Game2048 extends JPanel {
 
             iterations++;
 
-            if(System.currentTimeMillis() - lastTime >= 1000/60) {
+            if(System.currentTimeMillis() - lastTime >= 1000/15) {
                 repaint();
                 lastTime = System.currentTimeMillis();
             }
@@ -331,9 +331,9 @@ public class Game2048 extends JPanel {
 
         g.setColor(new Color(0x776e65));
         g.setFont(new Font(FONT_NAME, Font.PLAIN, 18));
-        g.drawString("Score: " + myScore, 10, 340);
-        g.drawString("Max tile: " + maxTile, 200, 340);
-        g.drawString("Iterations: " + iterations, 10, 360);
+        g.drawString("Score: " + myScore, 15, 340);
+        g.drawString("Max tile: " + maxTile, 175, 340);
+        g.drawString("Iterations: " + iterations, 15, 360);
     }
 
     private void drawTile(Graphics g2, Tile tile, int x, int y) {

@@ -34,10 +34,10 @@ public class SimpleAgent {
             .weightDecay(0.0001)
             .list()
             .layer(new DenseLayer.Builder()
-                    .nIn(16).nOut(8)
+                    .nIn(16).nOut(4)
                     .build())
             .layer(new OutputLayer.Builder()
-                    .nIn(8).nOut(4)
+                    .nIn(4).nOut(4)
                     .lossFunction(LossFunctions.LossFunction.SQUARED_LOSS)
                     .build())
             .build();
