@@ -1,6 +1,6 @@
 package ar.com.emmanuelmessulam;
 
-import org.deeplearning4j.api.storage.StatsStorage;
+import org.deeplearning4j.core.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
@@ -9,8 +9,8 @@ import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.ui.api.UIServer;
-import org.deeplearning4j.ui.stats.StatsListener;
-import org.deeplearning4j.ui.storage.InMemoryStatsStorage;
+import org.deeplearning4j.ui.model.stats.StatsListener;
+import org.deeplearning4j.ui.model.storage.InMemoryStatsStorage;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
@@ -62,9 +62,13 @@ public class SimpleAgent {
     private final ArrayList<INDArray> output = new ArrayList<>();
     private final ArrayList<Double> rewards = new ArrayList<>();
 
-    private int epsilon = 100;
+    private double epsilon = 1;
 
     public GameAction act() {
+        if(currentState.lost) {
+            System.out.println("Max score" + currentState.points);
+        }
+
         if(oldState != null) {
             double reward = currentState.points - oldState.points;
 
@@ -103,7 +107,7 @@ public class SimpleAgent {
                 rewards.clear();
             }
 
-            epsilon = Math.max(1, epsilon - 10);
+            epsilon -= (1 - 0.01) / 1000000.;
         }
 
         oldState = currentState;
@@ -112,7 +116,7 @@ public class SimpleAgent {
         GameAction action;
 
 
-        if(random.nextInt(100) < 100-epsilon) {
+        if(random.nextDouble() < 1-epsilon) {
             action = GameAction.values()[oldQuality.argMax(1).getInt()];
         } else {
             action = GameAction.values()[new Random().nextInt(GameAction.values().length)];
