@@ -43,7 +43,10 @@ public class Game2048 extends JPanel {
     private Tile[] myTiles;
     boolean myWin = false;
     boolean myLose = false;
+    long lastTime = 0;
+    int iterations = 0;
     int myScore = 0;
+    int maxTile = 0;
     SimpleAgent agent;
 
     public Game2048() {
@@ -88,14 +91,11 @@ public class Game2048 extends JPanel {
                 myLose = true;
             }
 
-            repaint();
+            iterations++;
 
-            if(SHOW) {
-                try {
-                    TimeUnit.MILLISECONDS.sleep(16);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+            if(System.currentTimeMillis() - lastTime >= 1000/60) {
+                repaint();
+                lastTime = System.currentTimeMillis();
             }
         }
 
@@ -259,6 +259,7 @@ public class Game2048 extends JPanel {
             if (i < 3 && oldLine[i].value == oldLine[i + 1].value) {
                 num *= 2;
                 myScore += num;
+                maxTile = Math.max(maxTile, num);
                 int ourTarget = 2048;
                 if (num == ourTarget) {
                     myWin = true;
@@ -295,18 +296,44 @@ public class Game2048 extends JPanel {
 
     @Override
     public void paint(Graphics g) {
-        if(myTiles == null) {
+        if (myTiles == null) {
             return;
         }
 
         super.paint(g);
         g.setColor(BG_COLOR);
         g.fillRect(0, 0, this.getSize().width, this.getSize().height);
+
         for (int y = 0; y < 4; y++) {
             for (int x = 0; x < 4; x++) {
                 drawTile(g, myTiles[x + y * 4], x, y);
             }
         }
+
+        if (myWin || myLose) {
+            g.setColor(new Color(255, 255, 255, 30));
+            g.fillRect(0, 0, getWidth(), getHeight());
+            g.setColor(new Color(78, 139, 202));
+            g.setFont(new Font(FONT_NAME, Font.BOLD, 48));
+            if (myWin) {
+                g.drawString("You won!", 68, 150);
+            }
+            if (myLose) {
+                g.drawString("Game over!", 50, 130);
+                g.drawString("You lose!", 64, 200);
+            }
+            if (myWin || myLose) {
+                g.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
+                g.setColor(new Color(128, 128, 128, 128));
+                g.drawString("Press ESC to play again", 80, getHeight() - 40);
+            }
+        }
+
+        g.setColor(new Color(0x776e65));
+        g.setFont(new Font(FONT_NAME, Font.PLAIN, 18));
+        g.drawString("Score: " + myScore, 10, 340);
+        g.drawString("Max tile: " + maxTile, 200, 340);
+        g.drawString("Iterations: " + iterations, 10, 360);
     }
 
     private void drawTile(Graphics g2, Tile tile, int x, int y) {
@@ -331,28 +358,6 @@ public class Game2048 extends JPanel {
 
         if (value != 0)
             g.drawString(s, xOffset + (TILE_SIZE - w) / 2, yOffset + TILE_SIZE - (TILE_SIZE - h) / 2 - 2);
-
-        if (myWin || myLose) {
-            g.setColor(new Color(255, 255, 255, 30));
-            g.fillRect(0, 0, getWidth(), getHeight());
-            g.setColor(new Color(78, 139, 202));
-            g.setFont(new Font(FONT_NAME, Font.BOLD, 48));
-            if (myWin) {
-                g.drawString("You won!", 68, 150);
-            }
-            if (myLose) {
-                g.drawString("Game over!", 50, 130);
-                g.drawString("You lose!", 64, 200);
-            }
-            if (myWin || myLose) {
-                g.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
-                g.setColor(new Color(128, 128, 128, 128));
-                g.drawString("Press ESC to play again", 80, getHeight() - 40);
-            }
-        }
-        g.setFont(new Font(FONT_NAME, Font.PLAIN, 18));
-        g.drawString("Score: " + myScore, 200, 365);
-
     }
 
     private static int offsetCoors(int arg) {
@@ -408,7 +413,7 @@ public class Game2048 extends JPanel {
         frame.add(game);
 
         frame.setLocationRelativeTo(null);
-        frame.setVisible(SHOW);
+        frame.setVisible(true);
 
         while (true) {
             game.startGame();

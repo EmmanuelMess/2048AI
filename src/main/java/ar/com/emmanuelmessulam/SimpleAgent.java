@@ -65,10 +65,6 @@ public class SimpleAgent {
     private double epsilon = 1;
 
     public GameAction act() {
-        if(currentState.lost) {
-            System.out.println("Max score" + currentState.points);
-        }
-
         if(oldState != null) {
             double reward = currentState.points - oldState.points;
 
