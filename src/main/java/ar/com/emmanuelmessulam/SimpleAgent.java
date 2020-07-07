@@ -47,8 +47,6 @@ public class SimpleAgent {
     private GameEnvironment currentState;
     private INDArray oldQuality;
 
-    private GameAction lastAction;
-
     public SimpleAgent() {
         Qnetwork.init();
         ui();
@@ -61,6 +59,8 @@ public class SimpleAgent {
     private final ArrayList<INDArray> input = new ArrayList<>();
     private final ArrayList<INDArray> output = new ArrayList<>();
     private final ArrayList<Double> rewards = new ArrayList<>();
+    private final ArrayList<GameAction> actions = new ArrayList<>();
+    private final double gamma = 0.5;
 
     private double epsilon = 1;
 
@@ -77,22 +77,15 @@ public class SimpleAgent {
             rewards.add(reward);
 
             if (currentState.lost || input.size() == 20) {
-                for(int i = 0; i < rewards.size(); i++) {
-                    double discount = 1.4;
-                    double discountedReward = 0;
-
-                    for(int j = i; j < rewards.size(); j++) {
-                        discountedReward += rewards.get(j) * Math.pow(discount, j - i);
-                    }
-
-                    rewards.set(i, lerp(discountedReward, 1024));
-                }
-
                 ArrayList<DataSet> dataSets = new ArrayList<>();
+                double gain = 0;
 
-                for(int i = 0; i < input.size(); i++) {
-                    INDArray correctOut = output.get(i).putScalar(lastAction.ordinal(), rewards.get(i));
+                for(int i = rewards.size()-1; i >= 0; i--) {
+                    gain = gamma * gain + rewards.get(i);
 
+                    double avg = (output.get(i).getDouble(actions.get(i).ordinal()) + gain) /2d;
+                    avg = lerp(avg, 2048);
+                    INDArray correctOut = output.get(i).putScalar(actions.get(i).ordinal(), avg);
                     dataSets.add(new DataSet(input.get(i), correctOut));
                 }
 
@@ -101,6 +94,7 @@ public class SimpleAgent {
                 input.clear();
                 output.clear();
                 rewards.clear();
+                actions.clear();
             }
 
             epsilon -= (1 - 0.01) / 1000000.;
@@ -118,7 +112,7 @@ public class SimpleAgent {
             action = GameAction.values()[new Random().nextInt(GameAction.values().length)];
         }
 
-        lastAction = action;
+        actions.add(action);
 
         return action;
     }
