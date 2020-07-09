@@ -54,7 +54,7 @@ public class SimpleAgent {
         ui();
     }
 
-    private static final double gamma = 0.2;
+    private static final double gamma = 0.02;
 
     private final ArrayList<INDArray> input = new ArrayList<>();
     private final ArrayList<INDArray> output = new ArrayList<>();
@@ -66,7 +66,6 @@ public class SimpleAgent {
     private GameEnvironment currentState;
     private INDArray oldQuality;
     private double epsilon = 1;
-    private boolean shouldRestart = false;
 
     public void setCurrentState(GameEnvironment currentState) {
         this.currentState = currentState;
@@ -84,28 +83,6 @@ public class SimpleAgent {
             output.add(oldQuality);
             rewards.add(reward);
 
-            if (currentState.lost || input.size() == 20) {
-                ArrayList<DataSet> dataSets = new ArrayList<>();
-                double gain = 0;
-
-                for(int i = rewards.size()-1; i >= 0; i--) {
-                    gain = gamma * gain + rewards.get(i);
-
-                    double lerpGain = reward(gain);
-                    INDArray correctOut = output.get(i).putScalar(actions.get(i).ordinal(), lerpGain);
-                    dataSets.add(new DataSet(input.get(i), correctOut));
-                }
-
-                Qnetwork.fit(DataSet.merge(dataSets));
-
-                input.clear();
-                output.clear();
-                rewards.clear();
-                actions.clear();
-
-                shouldRestart = true;
-            }
-
             epsilon -= (1 - 0.01) / 1000000.;
         }
 
@@ -113,7 +90,6 @@ public class SimpleAgent {
         oldQuality = Qnetwork.output(currentState.boardState);
 
         GameAction action;
-
 
         if(random.nextDouble() < 1-epsilon) {
             action = GameAction.values()[oldQuality.argMax(1).getInt()];
@@ -140,15 +116,34 @@ public class SimpleAgent {
     }
 
     public boolean shouldRestart() {
-        boolean restart = shouldRestart;
-        shouldRestart = false;
-        return restart;
+        if (currentState.lost || input.size() == 20) {
+            ArrayList<DataSet> dataSets = new ArrayList<>();
+            double gain = 0;
+
+            for(int i = rewards.size()-1; i >= 0; i--) {
+                gain = gamma * gain + rewards.get(i);
+
+                double lerpGain = reward(gain);
+                INDArray correctOut = output.get(i).putScalar(actions.get(i).ordinal(), lerpGain);
+                dataSets.add(new DataSet(input.get(i), correctOut));
+            }
+
+            Qnetwork.fit(DataSet.merge(dataSets));
+
+            input.clear();
+            output.clear();
+            rewards.clear();
+            actions.clear();
+
+            return true;
+        }
+
+        return false;
     }
 
     public Game2048.Tile[] generateState() {
         double lerped = lerp(wonTimes, WINS_TO_NORMAL_GAME);
-        Game2048.Tile[] myTiles = new Game2048.Tile[4 * 4];
-        int filledTiles = 2 + random.nextInt((int) (6 - 6*lerped));
+        int filledTiles = 8;
 
         List<Integer> values = new ArrayList<>(16);
 
@@ -157,7 +152,7 @@ public class SimpleAgent {
         }
 
         for (int i = 16-filledTiles; i < 14; i++) {
-            values.add((int) (5-5*lerped) + random.nextInt((int) (4- 4*lerped)));
+            values.add((int) (7-7*lerped) + random.nextInt((int) (2- 2*lerped)));
         }
 
         values.add((int) ceil(10-10*lerped));
@@ -172,21 +167,8 @@ public class SimpleAgent {
                 .toArray(Game2048.Tile[]::new);
     }
 
-    private static <E> List<E> pickNRandomElements(List<E> list, int n, Random r) {
-        int length = list.size();
-
-        if (length < n) return null;
-
-        //We don't need to shuffle the whole list
-        for (int i = length - 1; i >= length - n; --i) {
-            Collections.swap(list, i, r.nextInt(i + 1));
-        }
-        return list.subList(length - n, length);
-    }
-
     private static double reward(double x) {
-        if(x <= 1024) return (x/ 2048)/3;
-        else return x/ 2048;
+        return x/ 2048;
     }
 
     private static double lerp(double x, int maxVal) {

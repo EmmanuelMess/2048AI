@@ -59,7 +59,7 @@ public class Game2048 extends JPanel {
     public void startGame() {
         resetGame();
 
-        while(!myWin && canMove() && !agent.shouldRestart()) {
+        while(!myWin && canMove()) {
             if (!canMove()) {
                 myLose = true;
             }
@@ -69,6 +69,10 @@ public class Game2048 extends JPanel {
                     myLose,
                     List.of(myTiles).stream().mapToInt(tile -> tile.value).toArray()
             ));
+
+            if(agent.shouldRestart()) {
+                break;
+            }
 
             if (!myWin && !myLose) {
                 switch (agent.act()) {
