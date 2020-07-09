@@ -1,5 +1,6 @@
 package ar.com.emmanuelmessulam;
 
+import com.bulenkov.game2048.Game2048;
 import org.deeplearning4j.core.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
@@ -18,9 +19,14 @@ import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.bulenkov.game2048.Game2048.SEED;
+import static java.lang.Math.ceil;
 
 public class SimpleAgent {
     private static final Random random = new Random(SEED);
@@ -41,28 +47,30 @@ public class SimpleAgent {
                     .lossFunction(LossFunctions.LossFunction.SQUARED_LOSS)
                     .build())
             .build();
-    MultiLayerNetwork Qnetwork = new MultiLayerNetwork(conf);
 
-    private GameEnvironment oldState;
-    private GameEnvironment currentState;
-    private INDArray oldQuality;
 
     public SimpleAgent() {
         Qnetwork.init();
         ui();
     }
 
-    public void setCurrentState(GameEnvironment currentState) {
-        this.currentState = currentState;
-    }
+    private static final double gamma = 0.2;
 
     private final ArrayList<INDArray> input = new ArrayList<>();
     private final ArrayList<INDArray> output = new ArrayList<>();
     private final ArrayList<Double> rewards = new ArrayList<>();
     private final ArrayList<GameAction> actions = new ArrayList<>();
-    private final double gamma = 0.5;
 
+    private MultiLayerNetwork Qnetwork = new MultiLayerNetwork(conf);
+    private GameEnvironment oldState;
+    private GameEnvironment currentState;
+    private INDArray oldQuality;
     private double epsilon = 1;
+    private boolean shouldRestart = false;
+
+    public void setCurrentState(GameEnvironment currentState) {
+        this.currentState = currentState;
+    }
 
     public GameAction act() {
         if(oldState != null) {
@@ -83,9 +91,8 @@ public class SimpleAgent {
                 for(int i = rewards.size()-1; i >= 0; i--) {
                     gain = gamma * gain + rewards.get(i);
 
-                    double avg = (output.get(i).getDouble(actions.get(i).ordinal()) + gain) /2d;
-                    avg = lerp(avg, 2048);
-                    INDArray correctOut = output.get(i).putScalar(actions.get(i).ordinal(), avg);
+                    double lerpGain = reward(gain);
+                    INDArray correctOut = output.get(i).putScalar(actions.get(i).ordinal(), lerpGain);
                     dataSets.add(new DataSet(input.get(i), correctOut));
                 }
 
@@ -95,6 +102,8 @@ public class SimpleAgent {
                 output.clear();
                 rewards.clear();
                 actions.clear();
+
+                shouldRestart = true;
             }
 
             epsilon -= (1 - 0.01) / 1000000.;
@@ -115,6 +124,69 @@ public class SimpleAgent {
         actions.add(action);
 
         return action;
+    }
+
+    private final int WINS_TO_NORMAL_GAME = 100;
+    private int wonTimes = 0;
+
+    public void setHasWon(boolean won) {
+        if(won) {
+            wonTimes++;
+        }
+    }
+
+    public boolean playNormal() {
+        return wonTimes > WINS_TO_NORMAL_GAME;
+    }
+
+    public boolean shouldRestart() {
+        boolean restart = shouldRestart;
+        shouldRestart = false;
+        return restart;
+    }
+
+    public Game2048.Tile[] generateState() {
+        double lerped = lerp(wonTimes, WINS_TO_NORMAL_GAME);
+        Game2048.Tile[] myTiles = new Game2048.Tile[4 * 4];
+        int filledTiles = 2 + random.nextInt((int) (6 - 6*lerped));
+
+        List<Integer> values = new ArrayList<>(16);
+
+        for (int i = 0; i < 16-filledTiles; i++) {
+            values.add(0);
+        }
+
+        for (int i = 16-filledTiles; i < 14; i++) {
+            values.add((int) (5-5*lerped) + random.nextInt((int) (4- 4*lerped)));
+        }
+
+        values.add((int) ceil(10-10*lerped));
+        values.add((int) ceil(10-10*lerped));
+
+        Collections.shuffle(values);
+
+        return values
+                .stream()
+                .map((value) -> (value == 0? 0: 1 << value))
+                .map(Game2048.Tile::new)
+                .toArray(Game2048.Tile[]::new);
+    }
+
+    private static <E> List<E> pickNRandomElements(List<E> list, int n, Random r) {
+        int length = list.size();
+
+        if (length < n) return null;
+
+        //We don't need to shuffle the whole list
+        for (int i = length - 1; i >= length - n; --i) {
+            Collections.swap(list, i, r.nextInt(i + 1));
+        }
+        return list.subList(length - n, length);
+    }
+
+    private static double reward(double x) {
+        if(x <= 1024) return (x/ 2048)/3;
+        else return x/ 2048;
     }
 
     private static double lerp(double x, int maxVal) {

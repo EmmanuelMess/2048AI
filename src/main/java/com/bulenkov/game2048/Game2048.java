@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class Game2048 extends JPanel {
     public static final int SEED = 123;
-    public static final boolean SHOW = true;
+    public static final int FPS = 15;
 
     private static final Color BG_COLOR = new Color(0xbbada0);
     private static final String FONT_NAME = "Arial";
@@ -46,7 +46,7 @@ public class Game2048 extends JPanel {
     long lastTime = 0;
     int iterations = 0;
     int myScore = 0;
-    int maxTile = 0;
+    int wins = 0;
     SimpleAgent agent;
 
     public Game2048() {
@@ -59,7 +59,7 @@ public class Game2048 extends JPanel {
     public void startGame() {
         resetGame();
 
-        while(!myWin && canMove()) {
+        while(!myWin && canMove() && !agent.shouldRestart()) {
             if (!canMove()) {
                 myLose = true;
             }
@@ -93,18 +93,21 @@ public class Game2048 extends JPanel {
 
             iterations++;
 
-            if(System.currentTimeMillis() - lastTime >= 1000/15) {
+            if(System.currentTimeMillis() - lastTime >= 1000/FPS) {
                 repaint();
                 lastTime = System.currentTimeMillis();
             }
-        }
-
-        if(myWin) {
+/*
             try {
-                TimeUnit.DAYS.sleep(1);
+                TimeUnit.MILLISECONDS.sleep(250);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+*/
+        }
+
+        if(myWin) {
+            agent.setHasWon(true);
         }
     }
 
@@ -112,12 +115,17 @@ public class Game2048 extends JPanel {
         myScore = 0;
         myWin = false;
         myLose = false;
-        myTiles = new Tile[4 * 4];
-        for (int i = 0; i < myTiles.length; i++) {
-            myTiles[i] = new Tile();
+
+        if(agent.playNormal()) {
+            myTiles = new Tile[4 * 4];
+            for (int i = 0; i < myTiles.length; i++) {
+                myTiles[i] = new Tile();
+            }
+            addTile();
+            addTile();
+        } else {
+            myTiles = agent.generateState();
         }
-        addTile();
-        addTile();
     }
 
     public void left() {
@@ -259,9 +267,9 @@ public class Game2048 extends JPanel {
             if (i < 3 && oldLine[i].value == oldLine[i + 1].value) {
                 num *= 2;
                 myScore += num;
-                maxTile = Math.max(maxTile, num);
                 int ourTarget = 2048;
                 if (num == ourTarget) {
+                    wins++;
                     myWin = true;
                 }
                 i++;
@@ -332,8 +340,9 @@ public class Game2048 extends JPanel {
         g.setColor(new Color(0x776e65));
         g.setFont(new Font(FONT_NAME, Font.PLAIN, 18));
         g.drawString("Score: " + myScore, 15, 340);
-        g.drawString("Max tile: " + maxTile, 175, 340);
-        g.drawString("Iterations: " + iterations, 15, 360);
+        g.drawString("Normal game: " + (agent.playNormal() ? "Yes" : "No"), 160, 340);
+        g.drawString("Iterations: " + Suffix.format(iterations), 15, 360);
+        g.drawString("Wins: " + wins, 160, 360);
     }
 
     private void drawTile(Graphics g2, Tile tile, int x, int y) {
@@ -364,7 +373,7 @@ public class Game2048 extends JPanel {
         return arg * (TILES_MARGIN + TILE_SIZE) + TILES_MARGIN;
     }
 
-    static class Tile {
+    public static class Tile {
         int value;
 
         public Tile() {
